@@ -65,7 +65,11 @@ func makeCreateNoteHandler(db *db.DB) http.HandlerFunc {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
-		json.NewEncoder(w).Encode(map[string]int{"id": id})
+		json.NewEncoder(w).Encode(Note{
+			ID:      id,
+			Title:   note.Title,
+			Content: note.Content,
+		})
 	}
 }
 

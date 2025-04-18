@@ -2,6 +2,7 @@ package db
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 
 	_ "github.com/lib/pq"
@@ -35,7 +36,8 @@ func NewDB(dsn string) (*DB, error) {
 
 func (d *DB) GetNote(id int) (Note, error) {
 	var note Note
-	err := d.conn.QueryRow("SELECT id, title, content FROM notes WHERE id = $1", id).Scan(&note.ID, &note.Title, &note.Content)
+	err := d.conn.QueryRow("SELECT id, title, content FROM notes WHERE id = $1", id).
+		Scan(&note.ID, &note.Title, &note.Content)
 	if err == sql.ErrNoRows {
 		return Note{}, fmt.Errorf("note not found")
 	} else if err != nil {
@@ -46,7 +48,10 @@ func (d *DB) GetNote(id int) (Note, error) {
 
 func (d *DB) CreateNote(title, content string) (int, error) {
 	var id int
-	err := d.conn.QueryRow("INSERT INTO notes (title, content) VALUES ($1, $2) RETURNING id", title, content).Scan(&id)
+	err := d.conn.QueryRow(
+		"INSERT INTO notes (title, content) VALUES ($1, $2) RETURNING id",
+		title, content,
+	).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
@@ -54,7 +59,10 @@ func (d *DB) CreateNote(title, content string) (int, error) {
 }
 
 func (d *DB) UpdateNote(id int, title, content string) error {
-	res, err := d.conn.Exec("UPDATE notes SET title = $1, content = $2 WHERE id = $3", title, content, id)
+	res, err := d.conn.Exec(
+		"UPDATE notes SET title = $1, content = $2 WHERE id = $3",
+		title, content, id,
+	)
 	if err != nil {
 		return err
 	}
@@ -114,4 +122,19 @@ func (d *DB) SearchNotes(query string) ([]Note, error) {
 	}
 
 	return notes, nil
+}
+
+func (d *DB) SearchNotesJSON(query string) (string, error) {
+	notes, err := d.SearchNotes(query)
+	if err != nil {
+		return "", err
+	}
+	resp := map[string][]Note{
+		"search_result": notes,
+	}
+	data, err := json.Marshal(resp)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
 }

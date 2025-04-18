@@ -125,15 +125,29 @@ func makeDeleteNoteHandler(db *db.DB) http.HandlerFunc {
 func makeSearchNotesHandler(db *db.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		q := r.URL.Query().Get("q")
-
+		if q == "" {
+			http.Error(w, "Missing query parameter 'q'", http.StatusBadRequest)
+			return
+		}
 		notes, err := db.SearchNotes(q)
 		if err != nil {
 			log.Printf("Error searching notes: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
+		var convertedNotes []Note
+		for _, dbNote := range notes {
+			convertedNotes = append(convertedNotes, Note{
+				ID:      dbNote.ID,
+				Title:   dbNote.Title,
+				Content: dbNote.Content,
+			})
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(notes)
+		json.NewEncoder(w).Encode(map[string][]Note{
+			"search_result": convertedNotes,
+		})
 	}
 }
 
